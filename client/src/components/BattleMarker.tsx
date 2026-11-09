@@ -1,3 +1,4 @@
+import { useCallback, useRef } from 'react'
 import L from 'leaflet'
 import { Marker, Popup } from 'react-leaflet'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
@@ -22,11 +23,18 @@ interface BattleMarkerProps {
 
 function BattleMarker({ battle }: BattleMarkerProps) {
   const { lat, lng } = battle.coordinates
+  const popupRef = useRef<L.Popup>(null)
+
+  // Popup content is rendered by React, so Leaflet doesn't notice when it grows
+  // (e.g. an AI answer appears). update() re-measures it and pans the map.
+  const handleContentResize = useCallback(() => {
+    popupRef.current?.update()
+  }, [])
 
   return (
     <Marker position={[lat, lng]} icon={battleIcon}>
-      <Popup>
-        <BattleCard battle={battle} />
+      <Popup ref={popupRef} minWidth={280} maxWidth={320}>
+        <BattleCard battle={battle} onContentResize={handleContentResize} />
       </Popup>
     </Marker>
   )

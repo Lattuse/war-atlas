@@ -1,11 +1,13 @@
 import type { Battle } from "../types/battle";
 import { formatYear } from "../utils/formatYear";
+import AskBattle from "./AskBattle";
 
 interface BattleCardProps {
   battle: Battle;
+  onContentResize?: () => void;
 }
 
-function BattleCard({ battle }: BattleCardProps) {
+function BattleCard({ battle, onContentResize }: BattleCardProps) {
   return (
     <div className="rounded-lg border border-gray-200 p-4 shadow-sm">
       <h2 className="text-xl font-semibold">{battle.name}</h2>
@@ -16,6 +18,7 @@ function BattleCard({ battle }: BattleCardProps) {
           : `${formatYear(battle.startYear)}–${formatYear(battle.endYear)}`}{" "}
       </p>
       <p className="mt-2 text-sm">{battle.outcome}</p>
+      <AskBattle battleId={battle.id} onContentResize={onContentResize} />
     </div>
   );
 }
