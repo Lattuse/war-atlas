@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .venv
 __pycache__
+# Secrets
+.env
+.pytest_cache
