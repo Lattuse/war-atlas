@@ -132,6 +132,40 @@ def test_rate_limit_returns_429(client, fake_llm):
     assert len(fake_llm.calls) == limit
 
 
+def exhaust_rate_limit(client, headers):
+    for _ in range(ask_rate_limiter.max_requests):
+        client.post(
+            f"/api/battles/{BATTLE_ID}/ask", json={"question": "Who won?"}, headers=headers
+        )
+
+
+def test_rate_limit_uses_real_ip_header_on_vercel(client, fake_llm, monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    exhaust_rate_limit(client, {"x-real-ip": "1.1.1.1"})
+
+    other_user = client.post(
+        f"/api/battles/{BATTLE_ID}/ask",
+        json={"question": "Who won?"},
+        headers={"x-real-ip": "2.2.2.2"},
+    )
+
+    assert other_user.status_code == 200
+
+
+def test_real_ip_header_is_ignored_outside_vercel(client, fake_llm, monkeypatch):
+    monkeypatch.delenv("VERCEL", raising=False)
+    exhaust_rate_limit(client, {"x-real-ip": "1.1.1.1"})
+
+    # Without Vercel the header is client-controlled, so changing it must not help.
+    spoofed = client.post(
+        f"/api/battles/{BATTLE_ID}/ask",
+        json={"question": "Who won?"},
+        headers={"x-real-ip": "2.2.2.2"},
+    )
+
+    assert spoofed.status_code == 429
+
+
 def test_battles_endpoint_still_works(client):
     response = client.get("/api/battles")
 

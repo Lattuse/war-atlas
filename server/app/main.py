@@ -70,9 +70,20 @@ def get_llm_client() -> LLMClient:
         raise HTTPException(status_code=503, detail="AI assistant is not configured") from exc
 
 
+def client_ip(request: Request) -> str:
+    # Behind Vercel the socket address may belong to the platform, which would put
+    # every user into one rate-limit bucket. Vercel puts the caller's address in
+    # x-real-ip and doesn't pass through client-sent values, so trust the header
+    # only there: elsewhere anyone could send it to dodge the limit.
+    if os.getenv("VERCEL"):
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip
+    return request.client.host if request.client else "unknown"
+
+
 def check_rate_limit(request: Request) -> None:
-    client_ip = request.client.host if request.client else "unknown"
-    if not ask_rate_limiter.allow(client_ip):
+    if not ask_rate_limiter.allow(client_ip(request)):
         raise HTTPException(
             status_code=429, detail="Too many questions, please wait a minute"
         )

@@ -50,6 +50,16 @@ The backend reads these from `server/.env`:
 
 For a production build of the frontend, set `VITE_API_URL` to the backend URL and add the frontend's origin to `ALLOWED_ORIGINS`.
 
+## Deploying to Vercel
+
+The repo deploys as two Vercel projects, both imported from the same GitHub repository.
+
+1. **Backend.** Set Root Directory to `server`. Vercel recognises the FastAPI app in `app/main.py` and installs `requirements.txt`. Add `GEMINI_API_KEY` under Environment Variables. Once it's deployed, `https://<backend>.vercel.app/api/battles` should return JSON.
+2. **Frontend.** Set Root Directory to `client` (the Vite preset is picked automatically). Set `VITE_API_URL` to the backend URL, without a trailing slash. Vite reads it at build time, so redeploy the frontend if it changes.
+3. Back in the backend project, set `ALLOWED_ORIGINS` to the frontend URL and redeploy. Environment variables only apply to new deployments.
+
+[server/vercel.json](server/vercel.json) gives the function up to 60 seconds, which covers the 45-second model fallback chain. On Vercel, the rate limiter keys on the `x-real-ip` header, which Vercel sets to the caller's address.
+
 ## How the AI assistant works
 
 The browser never talks to the model provider directly. A question goes to `POST /api/battles/{id}/ask`, and the server looks the battle up in its own `battles.json`. It then builds a prompt with the battle record in a `<battle>` block and the user's question in a separate `<question>` block.
@@ -108,7 +118,7 @@ docs/TEST_PLAN.md            test plan and manual checklist
 ## Known limitations
 
 - The battle data exists twice: in `client/src/data` and in `server/app/data`. When you edit a battle, edit both files. The fix is to have the frontend load battles from `GET /api/battles`, which already exists.
-- The rate limiter lives in memory. It resets on restart and isn't shared between several server processes. That's fine for one small instance, not for anything bigger.
+- The rate limiter lives in memory. It resets on restart and isn't shared between server instances. Vercel can run several instances of the function at once, so there the limit is approximate. That's fine for a demo, not for anything bigger.
 - Answers arrive all at once rather than streamed. When the models are slow, the user can wait up to 45 seconds.
 
 ## Plans
