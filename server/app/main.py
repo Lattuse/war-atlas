@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -7,12 +8,21 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from .llm import LLMClient, LLMError, LLMNotConfiguredError, create_llm_client
+from .llm import (
+    LLMClient,
+    LLMError,
+    LLMNotConfiguredError,
+    LLMOverloadedError,
+    create_llm_client,
+)
 from .models import AskRequest, AskResponse, Battle
 from .prompts import SYSTEM_PROMPT, build_user_prompt
 from .rate_limit import RateLimiter
 
 load_dotenv()
+
+# Provider errors are hidden from API clients, so log them for the developer.
+logger = logging.getLogger("war_atlas")
 
 app = FastAPI(title="War Atlas API")
 
@@ -56,6 +66,7 @@ def get_llm_client() -> LLMClient:
     try:
         return _cached_llm_client()
     except LLMNotConfiguredError as exc:
+        logger.error("AI assistant is not configured: %s", exc)
         raise HTTPException(status_code=503, detail="AI assistant is not configured") from exc
 
 
@@ -85,7 +96,15 @@ def ask_about_battle(
     battle = find_battle(battle_id)
     try:
         answer = llm.generate(SYSTEM_PROMPT, build_user_prompt(battle, body.question))
+    except LLMOverloadedError as exc:
+        logger.warning("LLM provider is overloaded for battle '%s': %s", battle_id, exc)
+        # 504, because the client tells errors apart by status and 503 already
+        # means "not configured".
+        raise HTTPException(
+            status_code=504, detail="AI assistant is overloaded, try again later"
+        ) from exc
     except LLMError as exc:
+        logger.error("LLM call failed for battle '%s': %s", battle_id, exc)
         raise HTTPException(
             status_code=502, detail="AI assistant failed to answer, try again later"
         ) from exc
