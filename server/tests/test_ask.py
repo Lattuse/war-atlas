@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.llm import LLMError, LLMNotConfiguredError
+from app.llm import LLMError, LLMNotConfiguredError, LLMOverloadedError
 from app.main import app, ask_rate_limiter, get_llm_client
 from app.prompts import SYSTEM_PROMPT
 
@@ -85,13 +85,24 @@ def test_question_at_max_length_is_accepted(client, fake_llm):
     assert ask(client, "x" * 500).status_code == 200
 
 
-def test_llm_failure_returns_502(client, fake_llm):
+def test_llm_failure_returns_502_and_logs_reason(client, fake_llm, caplog):
     fake_llm.error = LLMError("quota exceeded")
 
     response = ask(client, "Who won?")
 
     assert response.status_code == 502
-    assert "quota" not in response.text  # provider details are not leaked
+    assert "quota" not in response.text  # provider details are not leaked to clients
+    assert "quota exceeded" in caplog.text  # but the developer sees them in the log
+
+
+def test_overloaded_provider_returns_504_and_logs_reason(client, fake_llm, caplog):
+    fake_llm.error = LLMOverloadedError("503 UNAVAILABLE")
+
+    response = ask(client, "Who won?")
+
+    assert response.status_code == 504
+    assert "UNAVAILABLE" not in response.text
+    assert "503 UNAVAILABLE" in caplog.text
 
 
 def test_missing_api_key_returns_503(client, monkeypatch):
