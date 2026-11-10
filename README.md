@@ -2,6 +2,8 @@
 
 An interactive map of historical battles. Drag the timeline to choose a period, click a marker to open the battle card, and if the short summary isn't enough, ask the built-in AI assistant about that battle.
 
+Live demo: **[war-atlas-orcin.vercel.app](https://war-atlas-orcin.vercel.app)**
+
 ![The map with the Battle of Hastings card open and an AI answer in the "Ask AI" tab](docs/screenshot.png)
 
 The interface and the battle data are in Russian. The dataset is small for now: seven battles, from Thermopylae (480 BC) through Hastings, Austerlitz, Borodino and Waterloo to Stalingrad and Kursk (1943). It's enough to build the features on, and it will grow.
