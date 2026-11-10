@@ -49,10 +49,11 @@ function AskBattle({ battleId, onContentResize }: AskBattleProps) {
   }
 
   return (
-    <div className="mt-3 border-t border-gray-200 pt-3">
-      <p className="text-sm font-medium">Спросить AI про эту битву</p>
-
-      <div className="mt-2 flex flex-wrap gap-1">
+    // Fills the fixed-height tab panel; only the answer area scrolls.
+    // <div> instead of <p>: Leaflet's `.leaflet-popup-content p` margin is
+    // unlayered CSS and would override Tailwind's spacing utilities.
+    <div className="flex h-full flex-col">
+      <div className="flex flex-wrap gap-1">
         {SUGGESTED_QUESTIONS.map((text) => (
           <button
             key={text}
@@ -85,20 +86,22 @@ function AskBattle({ battleId, onContentResize }: AskBattleProps) {
         </button>
       </form>
 
-      {isLoading && <p className="mt-2 text-xs text-gray-500">Думаю...</p>}
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600">
-          {error}
-        </p>
-      )}
-      {answer && (
-        <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-line rounded bg-gray-50 p-2 text-sm">
-          {answer}
-        </p>
-      )}
-      <p className="mt-1 text-[10px] text-gray-400">
+      <div className="mt-2 min-h-0 flex-1">
+        {isLoading && <div className="text-xs text-gray-500">Думаю...</div>}
+        {error && (
+          <div role="alert" className="text-sm text-red-600">
+            {error}
+          </div>
+        )}
+        {answer && (
+          <div className="h-full overflow-y-auto whitespace-pre-line rounded bg-gray-50 p-2 text-sm">
+            {answer}
+          </div>
+        )}
+      </div>
+      <div className="mt-1 text-[10px] text-gray-400">
         Ответ генерирует AI и может содержать неточности
-      </p>
+      </div>
     </div>
   )
 }
