@@ -23,7 +23,11 @@ const MESSAGES_BY_STATUS: Record<number, string> = {
   429: 'Слишком много вопросов, подождите минуту',
   502: 'AI-помощник не смог ответить, попробуйте ещё раз',
   503: 'AI-помощник сейчас не настроен на сервере',
+  504: 'AI-помощник сейчас перегружен, попробуйте через пару минут',
 }
+
+// Upper bound on waiting; the backend gives up on the LLM well before this.
+export const REQUEST_TIMEOUT_MS = 60_000
 
 export async function askBattle(
   battleId: string,
@@ -38,9 +42,13 @@ export async function askBattle(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
     )
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new AskBattleError('AI-помощник отвечает слишком долго, попробуйте ещё раз', 0)
+    }
     throw new AskBattleError('Сервер недоступен', 0)
   }
 
