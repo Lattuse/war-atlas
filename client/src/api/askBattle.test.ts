@@ -17,11 +17,15 @@ describe('askBattle', () => {
     const answer = await askBattle('battle-of-hastings', 'Who won?', fetchImpl)
 
     expect(answer).toBe('Norman victory.')
-    expect(fetchImpl).toHaveBeenCalledWith('/api/battles/battle-of-hastings/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: 'Who won?' }),
-    })
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/battles/battle-of-hastings/ask',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: 'Who won?' }),
+        signal: expect.any(AbortSignal),
+      }),
+    )
   })
 
   it('encodes the battle id in the URL', async () => {
@@ -38,11 +42,25 @@ describe('askBattle', () => {
     [429, 'Слишком много вопросов, подождите минуту'],
     [502, 'AI-помощник не смог ответить, попробуйте ещё раз'],
     [503, 'AI-помощник сейчас не настроен на сервере'],
+    [504, 'AI-помощник сейчас перегружен, попробуйте через пару минут'],
     [500, 'Что-то пошло не так'],
   ])('maps HTTP %i to a readable error', async (status, message) => {
     const promise = askBattle('battle-of-hastings', 'Who won?', mockFetch(status))
 
     await expect(promise).rejects.toEqual(new AskBattleError(message, status))
+  })
+
+  it('reports a timeout as a slow answer', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'))
+
+    const promise = askBattle('battle-of-hastings', 'Who won?', fetchImpl)
+
+    await expect(promise).rejects.toMatchObject({
+      status: 0,
+      message: 'AI-помощник отвечает слишком долго, попробуйте ещё раз',
+    })
   })
 
   it('reports a network failure as server unavailable', async () => {
